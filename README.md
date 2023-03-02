@@ -162,3 +162,52 @@ bodySegmentation.createSegmenter(model, segmenterConfig)
 This code calls an asynchronous method on the TensorFlow.js bodySegmentation model to create a new classifier with the configuration created early. As it is asynchronous, we call `then()` to wait for the classifier. The classifier is passed to the `segmenter` parameter in the anonymous function in `then()`. At this point, we know the classifier is fully loaded so we call `segment()` and pass it the classifier.
 
 5. Add the following code inside your `segment()` function:
+
+```javascript
+// Find the person in the image
+segmenter.segmentPeople(image)
+         .then(people => {
+                // The colour to set pixels in the foreground (person, transparent)
+                const foreground = {r: 0, g: 0, b: 0, a: 0};
+                // The colour to set pixels in the background (wall, green)
+                const background = {r: 0, g: 255, b: 0, a: 255};
+                // Create a mask with the given colours (green background, transparent person)
+                bodySegmentation.toBinaryMask(people, foreground, background)
+                                .then(maskImage => {
+                                      // Draw the mask on the canvas
+                                      ctx.putImageData(maskImage, 0, 0);
+                                });
+          });
+```
+Check the output of your code in Chrome. You should see the original image at the top of the page and the segmented mask on the canvas. The segmented mask should look like this:
+[segmented mask](url-of-image-tbd)
+**Remove the background**
+As the background is now a solid green, it can easily be removed by iterating through the images pixels and setting any green pixels to transparent.
+
+1. Write a function called `isPixelGreen` that takes four parameters, `r`, `g`, `b`, and `a`, representing the colour channels in an image, including alpha. The function should return `true` if the `r` and `b` are 0 and `g` and `a` are 255.
+2. Outline a function called `drawImageWithoutBackground` that takes two parameter, `image`, and `maskData`. `image` represents the original image, and `maskData` represents the segmented mask returned by the classifier.
+3. Add the following code inside `drawImageWithoutBackground`:
+
+```javascript
+// Draw the image on the canvas
+ctx.drawImage(image, 0, 0);
+// Read the image data from the canvas, a JavaScript ImageData object
+const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+// Get the pixel array from the image data
+const imagePixels = imageData.data;
+// Get the pixel array from the mask data
+const maskPixels = maskData.data;
+// Iterate through the mask pixels. If the mask pixel is green, turn the corresponding mask pixel transparent
+for (let i = 0; i < maskPixels.length; i+=4) {
+  if (isPixelGreen(maskPixels[i], maskPixels[i+1], maskPixels[i+2], maskPixels[i+3])) {
+    imagePixels[i+3] = 0; // make the image pixel transparent by setting the alphas 
+  }
+}
+// Draw the updated image pixels to the canvas
+ctx.putImageData(imageData, 0, 0);
+```
+There's a lot going on in this code. In order to modify the pixels in an image, we need to get its `ImageData` object, which has a property called `data`, a 1D array representing all the pixels. The `toBinaryData()` method used in the `segment()` function returns an `ImageData` object, which will be passed to `drawImageWithoutBackground()` as the `maskData` parameter, so we already have access to the individual pixels in the segmented mask. To get the pixels from the raw image, we need to draw it on the canvas using `ctx.drawImage()`, then get its `ImageData` object using `ctx.getImageData()`.
+
+The key part of the code above is the for loop. Conceptually, the for loop iterates through the *mask* pixels to find green pixels then it sets the alpha channel of the corresponding *image* pixel to transparent, thus removing the background and leaving the person. Notice that the for loop jumps 4 pixels on each iteration. This is because the array stores four values for each pixel, representing its colour channels (R, G, B, A). You can read more about the pixel array [in the docs](https://developer.mozilla.org/en-US/docs/Web/API/ImageData/data).
+
+Once the background of the image is removed, the pixels are drawn to the canvas using `ctx.putImageData()`.
