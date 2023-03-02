@@ -405,4 +405,4 @@ navigator.mediaDevices
 You are done with the tutorial but can go further by applying your knowledge of JavaScript to improve the user experience. For example, you could:
 - Add a button that allows the user to toggle the webcam on and off (you will need to do some research on how to play / pause the video, and listen for play / pause events)
 - Add a button that allows the user to toggle between the raw video background and the background image.
-- Allow the user to change the background image. The "file" input type will be useful for this.
+- Allow the user to change the background image. The "file" input type will be useful for this. You should also do some research on how to read an image file as a data URL.
