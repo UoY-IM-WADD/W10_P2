@@ -180,13 +180,15 @@ segmenter.segmentPeople(image)
           });
 ```
 Check the output of your code in Chrome. You should see the original image at the top of the page and the segmented mask on the canvas. The segmented mask should look like this:
-[segmented mask](url-of-image-tbd)
+![segmented_image](https://user-images.githubusercontent.com/50892754/222404363-b99f843a-2ff9-4d62-9e0c-844e3aae6fc1.png)
+
 **Remove the background**
 As the background is now a solid green, it can easily be removed by iterating through the images pixels and setting any green pixels to transparent.
 
 1. Write a function called `isPixelGreen` that takes four parameters, `r`, `g`, `b`, and `a`, representing the colour channels in an image, including alpha. The function should return `true` if the `r` and `b` are 0 and `g` and `a` are 255.
 2. Outline a function called `drawImageWithoutBackground` that takes two parameter, `image`, and `maskData`. `image` represents the original image, and `maskData` represents the segmented mask returned by the classifier.
-3. Add the following code inside `drawImageWithoutBackground`:
+3. In your `segment()` function, replace the line `ctx.putImageData(maskImage, 0, 0);` with a call to the new function: `drawImageWithoutBackground(image, maskImage);`
+4. Add the following code inside `drawImageWithoutBackground`:
 
 ```javascript
 // Draw the image on the canvas
@@ -211,3 +213,72 @@ There's a lot going on in this code. In order to modify the pixels in an image, 
 The key part of the code above is the for loop. Conceptually, the for loop iterates through the *mask* pixels to find green pixels then it sets the alpha channel of the corresponding *image* pixel to transparent, thus removing the background and leaving the person. Notice that the for loop jumps 4 pixels on each iteration. This is because the array stores four values for each pixel, representing its colour channels (R, G, B, A). You can read more about the pixel array [in the docs](https://developer.mozilla.org/en-US/docs/Web/API/ImageData/data).
 
 Once the background of the image is removed, the pixels are drawn to the canvas using `ctx.putImageData()`.
+
+The output on the canvas should look like this:
+![background_removed](https://user-images.githubusercontent.com/50892754/222404479-6b0c4f92-6982-4c1d-9788-1c4a148b293a.png)
+
+**Add a new background**
+1. In your CSS file, create a rule declaration for your canvas if you haven't done so already.
+2. Set the [`background-image`](https://www.w3schools.com/cssref/pr_background-image.php) property of the canvas. You can use the business-people-pointing-1557758791FVV.jpg image that should already be in the images folder, or you can use an image of your choosing. The image should be about the same size as the canvas (don't worry about an exact fit just yet... your webcam image is likely to be a different size).
+3. Depending on the size of your background image, you may see some repeating, or other undesirable effects. You may wish to look up some of the CSS properties for controlling a background, such as [`background-repeat`](https://www.w3schools.com/cssref/pr_background-repeat.php) and [`background-size`](https://www.w3schools.com/cssref/css3_pr_background-size.php). Here is my CSS for the canvas:
+
+```css
+canvas {
+    background-image: url('images/business-people-pointing-1557758791FVV.jpg');
+    background-repeat: no-repeat;
+    background-size: contain;
+    border: solid 1px;
+}
+```
+In your browser, the canvas should now look like this:
+![new_background](https://user-images.githubusercontent.com/50892754/222407799-06e9d5ab-3d21-4e36-bd99-b27d30ea86e9.png)
+
+Here is the complete JavaScript at this point in the tutorial:
+```javascript
+const image = document.getElementById("image");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", {willReadFrequently: true});
+
+const model = bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation;
+const segmenterConfig = {
+  runtime: 'mediapipe', 
+  solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation',
+  modelType: 'general'
+}
+
+const setup = () => {
+    bodySegmentation.createSegmenter(model, segmenterConfig)
+                    .then(segmenter => {
+                           segment(segmenter);
+                    });   
+}
+
+const segment = segmenter => {
+    segmenter.segmentPeople(image)
+             .then(people => {
+                     const foreground = {r: 0, g: 0, b: 0, a: 0};
+                     const background = {r: 0, g: 255, b: 0, a: 255};
+                     bodySegmentation.toBinaryMask(people, foreground, background)
+                                     .then(maskImage => {
+                                              drawImageWithoutBackground(image, maskImage);
+                                     });
+             });
+}
+
+const isPixelGreen = (r, g, b, a) => r === 0 && g === 255 && b === 0 && a === 255;
+
+const drawImageWithoutBackground = (image, maskData) => {
+    ctx.drawImage(image, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const imagePixels = imageData.data;
+    const maskPixels = maskData.data;
+    for (let i = 0; i < maskPixels.length; i+=4) {
+        if (isPixelGreen(maskPixels[i], maskPixels[i+1], maskPixels[i+2], maskPixels[i+3])) {
+            imagePixels[i+3] = 0;
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+}
+
+setup(); 
+```
