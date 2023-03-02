@@ -113,13 +113,13 @@ Most video conferencing apps allow users to blur their background or replace it 
 ### Body segmentation
 The following steps are based on [this TensorFlow.js example](https://github.com/tensorflow/tfjs-models/tree/master/body-segmentation) but they have been heavily customised.
 
-**Complete the HTML page**
+#### Complete the HTML page
 1.	Copy the images folder from the practical materials into the folder that contains your HTML.
 2.	In your index.html file, add an image element above the scripts and give it the `id` "image". Use the image called "StockSnap_5TCGRN12WA.jpg" as the image source. You will eventually use the body segmentation model to separate the person in the foreground of the image from the wall in the background.
 3.	Below the image but above the scripts, add a canvas element, give it the `id` "canvas" and set its width and height to match the image (800px by 533px). The segmented image will be displayed on the canvas later on. Open index.html in Chrome using Live Preview and check that you see the image in your browser. 
 4.	Give the canvas a CSS border or background colour so that you can see it on the screen even when nothing is drawn on it.
 
-**Create global variables in your JS file**
+#### Create global variables in your JS file
 1.	In your JS file, create global variables to store the image element, the canvas, and its context. When getting the canvas context, you will need to pass a second argument that will improve performance when the webcam is used. Here is the code:
 
 ```javascript
@@ -139,7 +139,7 @@ const segmenterConfig = {
   modelType: 'general'
 }
 ```
-**Segment the image**
+#### Segment the image
 Using a machine learning model for classification typically involves three stages:
 1. Loading the classifier, which is essentially a file or data structure containing a lot of numerical data
 2. Passing some new data to the classifier and waiting for it to respond with a prediction or label
@@ -182,7 +182,7 @@ segmenter.segmentPeople(image)
 Check the output of your code in Chrome. You should see the original image at the top of the page and the segmented mask on the canvas. The segmented mask should look like this:
 ![segmented_image](https://user-images.githubusercontent.com/50892754/222404363-b99f843a-2ff9-4d62-9e0c-844e3aae6fc1.png)
 
-**Remove the background**
+#### Remove the background
 As the background is now a solid green, it can easily be removed by iterating through the images pixels and setting any green pixels to transparent.
 
 1. Write a function called `isPixelGreen` that takes four parameters, `r`, `g`, `b`, and `a`, representing the colour channels in an image, including alpha. The function should return `true` if the `r` and `b` are 0 and `g` and `a` are 255.
@@ -217,7 +217,7 @@ Once the background of the image is removed, the pixels are drawn to the canvas 
 The output on the canvas should look like this:
 ![background_removed](https://user-images.githubusercontent.com/50892754/222404479-6b0c4f92-6982-4c1d-9788-1c4a148b293a.png)
 
-**Add a new background**
+#### Add a new background
 1. In your CSS file, create a rule declaration for your canvas if you haven't done so already.
 2. Set the [`background-image`](https://www.w3schools.com/cssref/pr_background-image.php) property of the canvas. You can use the business-people-pointing-1557758791FVV.jpg image that should already be in the images folder, or you can use an image of your choosing. The image should be about the same size as the canvas (don't worry about an exact fit just yet... your webcam image is likely to be a different size).
 3. Depending on the size of your background image, you may see some repeating, or other undesirable effects. You may wish to look up some of the CSS properties for controlling a background, such as [`background-repeat`](https://www.w3schools.com/cssref/pr_background-repeat.php) and [`background-size`](https://www.w3schools.com/cssref/css3_pr_background-size.php). Here is my CSS for the canvas:
@@ -281,4 +281,122 @@ const drawImageWithoutBackground = (image, maskData) => {
 }
 
 setup(); 
+```
+### Capturing and segmenting your webcam video
+From this point on, a webcam is required.
+
+You are done with TensorFlow.js. For the next stage of the tutorial, you will work with JavaScript's built in [MediaDevices interface](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices), which enables you to capture input from the user's webcam and microphone.
+
+1. In your HTML file, remove the image element and replace it with a `<video>` element as shown below. This temporarily break your JavaScript.
+```html
+<video id="webcam"></video>
+```
+2. In your JS file, delete the call to `setup()` at the bottom of the script but leave the function as it is. Instead of calling the function on page load, you will request access to the user's webcam and wait for the video stream to start before calling `setup()`.
+3. Delete the global `image` variable and replace it with a global `video` variable, which references the video element:
+
+```javascript
+const video = document.getElementById("webcam");
+```
+4. Go through your script, and replace any usages of the `image` variable with `video`. There should just be two instances, which you can find in `segment()` .
+5. At the bottom of the JS file, add the following code:
+
+```javascript
+navigator.mediaDevices
+         .getUserMedia({
+            audio: false,
+            video: { width: canvas.width, height: canvas.height }
+          })
+          .then(mediaStream => {
+              video.srcObject = mediaStream;
+          })
+          .catch(err => {
+              console.error("something went wrong with the webcam", err);
+          });
+```
+This code uses the built-in `navigator.mediaDevices` object to request access to the webcam using the `getUserMedia()` method. The argument passed to this method is a JSON object configuring the request—audio is turned off and the requested width and height match the canvas width and height. Getting access to the camera is an asynchronous operation as the code has to prompt the user for permission (first time only) then wait for the camera to open and the stream to become available. When the stream is available, it is passed to `then()` as the `mediaStream` parameter. The next line sets the webcam stream as the source of the HTML `video` element. As there are lots of things that could go wrong, such as the user refusing permission, there is an `error()` method to print out a message if needed.
+
+5. If you check your browser now, you will probably see a big empty space at the top of the page and no video. To play the video and start segmentation on the webcam stream, add an event listener that will wait for the video to load:
+
+```javascript
+video.addEventListener("loadedmetadata", () => {
+    video.play(); 
+    setup();
+});
+```
+You should see the webcam video playing at the top of your browser window, and on the canvas, a still image of one frame of your webcam stream with the background image you added earlier.
+6. The very last thing to do is to repeatedly call `segment()` so that the canvas shows video rather than a still image. In `segment()`, add the following line immediately after `drawImageWithoutBackground(video, maskImage);`:
+
+```javascript
+setTimeout(() => {segment(segmenter)}, 15);
+```
+If you would like to hide the raw webcam stream, you can set its CSS `position` property to `absolute` and its `left` property to something like `-100vw`.
+
+Here is the complete JavaScript code:
+```javascript
+const canvas = document.getElementById("canvas");
+const video = document.getElementById("webcam");
+const ctx = canvas.getContext("2d", {willReadFrequently: true});
+
+
+const model = bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation;
+const segmenterConfig = {
+  runtime: 'mediapipe', 
+  solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation',
+  modelType: 'general'
+}
+
+const setup = () => {
+    bodySegmentation.createSegmenter(model, segmenterConfig)
+        .then(segmenter => {
+            segment(segmenter);
+        });
+    
+}
+
+const segment = segmenter => {
+    segmenter.segmentPeople(video)
+        .then(people => {
+            const foreground = {r: 0, g: 0, b: 0, a: 0};
+            const background = {r: 0, g: 255, b: 0, a: 255};
+            bodySegmentation.toBinaryMask(people, foreground, background)
+                .then(maskImage => {
+                    drawImageWithoutBackground(video, maskImage);
+                    setTimeout(() => {segment(segmenter)}, 15);
+                });
+        });
+}
+
+const isPixelGreen = (r, g, b, a) => r === 0 && g === 255 && b === 0 && a === 255;
+
+
+const drawImageWithoutBackground = (image, maskData) => {
+    ctx.drawImage(image, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const imagePixels = imageData.data;
+    const maskPixels = maskData.data;
+    for (let i = 0; i < maskPixels.length; i+=4) {
+        if (isPixelGreen(maskPixels[i], maskPixels[i+1], maskPixels[i+2], maskPixels[i+3])) {
+            imagePixels[i+3] = 0; // make the image pixel transparent
+        }
+    }
+    ctx.putImageData(imageData, 0, 0);
+}
+
+video.addEventListener("loadedmetadata", () => {
+    video.play(); 
+    setup();
+});
+
+navigator.mediaDevices
+    .getUserMedia({
+        audio: false,
+        video: { width: canvas.width, height: canvas.height }
+    })
+    .then(mediaStream => {
+        video.srcObject = mediaStream;
+    })
+    .catch(err => {
+        console.error("Something went wrong with the webcam", err);
+    });
+
 ```
