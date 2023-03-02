@@ -98,3 +98,67 @@ Hopefully this tutorial will help you get started with p5js. There are lots of t
 - Try translating some of your Processing work (or lecture / practical sample code) from PDM or CT into p5js. For example, the Pong game from PDM practical 3 would be a good option. Keep in mind that while a lot of the syntax is similar between the two versions there are some differences—keep the p5js reference open as you work.
 
 ## Create a Webcam Background With TensorFlow
+TensorFlow.js is a Google machine learning library that allows you to embed some AI capabilities in your web applications. Taking full advantage of TensorFlow.js requires advanced technical skills and knowledge of machine learning fundamentals but this tutorial is intended to be approachable with just the JS covered in this module. 
+
+Most video conferencing apps allow users to blur their background or replace it with an image. This is done using a computer vision technique called segmentation, which separates background from objects of interest in an image. In this tutorial, you will use body segmentation, where the object of interest is a human, to create an image background. If you don’t have a webcam, you can still do the setup and the body segmentation sections of the tutorial. A webcam is required for the final section.
+
+### Setup
+1.	Make a copy of the templates folder in the practical materials or create a new basic HTML page and linked CSS and JS files.
+2.	Add TensorFlow.js to your HTML file by copying the `<script>` element found under "Usage via script tag" on [this page](https://www.tensorflow.org/js/tutorials/setup) and pasting it just above the `<script>` element that connects main.js.
+3.	TensorFlow.js provides pre-trained models for a number of tasks. To use a pre-trained model, you need to import it alongside the library itself. For this tutorial, you will need two pre-trained models for body segmentation. Import these models by copying the following script tags into your HTML between the script tag from step 2 and the script tag linking main.js:
+```html
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/body-segmentation@1.0.1"> </script>
+```
+### Body segmentation
+The following steps are based on [this TensorFlow.js example](https://github.com/tensorflow/tfjs-models/tree/master/body-segmentation) but they have been heavily customised.
+
+**Complete the HTML page**
+1.	Copy the images folder from the practical materials into the folder that contains your HTML.
+2.	In your index.html file, add an image element above the scripts and give it the `id` "image". Use the image called "StockSnap_5TCGRN12WA.jpg" as the image source. You will eventually use the body segmentation model to separate the person in the foreground of the image from the wall in the background.
+3.	Below the image but above the scripts, add a canvas element, give it the `id` "canvas" and set its width and height to match the image (800px by 533px). The segmented image will be displayed on the canvas later on. Open index.html in Chrome using Live Preview and check that you see the image in your browser. 
+4.	Give the canvas a CSS border or background colour so that you can see it on the screen even when nothing is drawn on it.
+
+**Create global variables in your JS file**
+1.	In your JS file, create global variables to store the image element, the canvas, and its context. When getting the canvas context, you will need to pass a second argument that will improve performance when the webcam is used. Here is the code:
+
+```javascript
+const image = document.getElementById("image");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d", {willReadFrequently: true});
+```
+2.	Create another variable that will store a reference to TensorFlow’s bodySegmentation model. Copy this code as is:
+```javascript
+const model = bodySegmentation.SupportedModels.MediaPipeSelfieSegmentation;
+```
+3.	Add the following variable, a JSON object that stores configuration information for the model, such as which specific model to use:
+```javascript
+const segmenterConfig = {
+  runtime: 'mediapipe', 
+  solutionPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation',
+  modelType: 'general'
+}
+```
+**Segment the image**
+Using a machine learning model for classification typically involves three stages:
+1. Loading the classifier, which is essentially a file or data structure containing a lot of numerical data
+2. Passing some new data to the classifier and waiting for it to respond with a prediction or label
+3. Doing something with the classifier output.
+
+As models are generally very large, stages 1 and 2 can be slow so they are usually carried out using *asynchronous* operations, similar to the asynchronous operations to fetch data from a web API.
+
+You will now write functions to carry out each stage.
+1. Outline a function called `setup` using your preferred syntax. It should not have any parameters. This function will load the classifier, which we'll refer to as the "segmenter".
+2. Outline a function called `segment` using your preffered syntax. It should have one parameter called `segmenter`. This function will pass data to the classifier and wait for a response.
+3. Call `setup()` at the bottom of your script file.
+4. Add the following code inside your `setup` function:
+
+```javascript
+bodySegmentation.createSegmenter(model, segmenterConfig)
+                .then(segmenter => {
+                    segment(segmenter);
+                });
+```
+This code calls an asynchronous method on the TensorFlow.js bodySegmentation model to create a new classifier with the configuration created early. As it is asynchronous, we call `then()` to wait for the classifier. The classifier is passed to the `segmenter` parameter in the anonymous function in `then()`. At this point, we know the classifier is fully loaded so we call `segment()` and pass it the classifier.
+
+5. Add the following code inside your `segment()` function:
