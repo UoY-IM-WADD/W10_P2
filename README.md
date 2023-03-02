@@ -315,7 +315,7 @@ navigator.mediaDevices
 ```
 This code uses the built-in `navigator.mediaDevices` object to request access to the webcam using the `getUserMedia()` method. The argument passed to this method is a JSON object configuring the request—audio is turned off and the requested width and height match the canvas width and height. Getting access to the camera is an asynchronous operation as the code has to prompt the user for permission (first time only) then wait for the camera to open and the stream to become available. When the stream is available, it is passed to `then()` as the `mediaStream` parameter. The next line sets the webcam stream as the source of the HTML `video` element. As there are lots of things that could go wrong, such as the user refusing permission, there is an `error()` method to print out a message if needed.
 
-5. If you check your browser now, you will probably see a big empty space at the top of the page and no video. To play the video and start segmentation on the webcam stream, add an event listener that will wait for the video to load:
+6. If you check your browser now, you will probably see a big empty space at the top of the page and no video. To play the video and start segmentation on the webcam stream, add an event listener that will wait for the video to load:
 
 ```javascript
 video.addEventListener("loadedmetadata", () => {
@@ -324,7 +324,8 @@ video.addEventListener("loadedmetadata", () => {
 });
 ```
 You should see the webcam video playing at the top of your browser window, and on the canvas, a still image of one frame of your webcam stream with the background image you added earlier.
-6. The very last thing to do is to repeatedly call `segment()` so that the canvas shows video rather than a still image. In `segment()`, add the following line immediately after `drawImageWithoutBackground(video, maskImage);`:
+
+7. The very last thing to do is to repeatedly call `segment()` so that the canvas shows video rather than a still image. In `segment()`, add the following line immediately after `drawImageWithoutBackground(video, maskImage);`:
 
 ```javascript
 setTimeout(() => {segment(segmenter)}, 15);
@@ -400,3 +401,8 @@ navigator.mediaDevices
     });
 
 ```
+### Extension
+You are done with the tutorial but can go further by applying your knowledge of JavaScript to improve the user experience. For example, you could:
+- Add a button that allows the user to toggle the webcam on and off (you will need to do some research on how to play / pause the video, and listen for play / pause events)
+- Add a button that allows the user to toggle between the raw video background and the background image.
+- Allow the user to change the background image. The "file" input type will be useful for this.
